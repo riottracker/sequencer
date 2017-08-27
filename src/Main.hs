@@ -1,6 +1,5 @@
-module Main where
+module Main (module Sound.Sequencer.Vty) where
 
-import Sound.Sequencer
+import Sound.Sequencer.Sequencer
+import Sound.Sequencer.Vty (main)
 
-main :: IO ()
-main = putStrLn "Hello, Haskell!"

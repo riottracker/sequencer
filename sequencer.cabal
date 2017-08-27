@@ -13,12 +13,11 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Sound.Sequencer
+  exposed-modules:     Sound.Sequencer.Sequencer
   build-depends:       base >=4.9 && <4.10
-                     , type-natural
                      , modfile
-                     , linear
-                     , vector
+                     , vty
+  ghc-options:         -Wall
   hs-source-dirs:      src
   default-language:    Haskell2010
 
@@ -27,10 +26,9 @@ executable sequencer
   main-is:             Main.hs
   build-depends:       base >=4.9 && <4.10
                      , sequencer
-                     , type-natural
                      , modfile
-                     , linear
-                     , vector
+                     , vty
+  ghc-options:         -threaded
   hs-source-dirs:      src
   default-language:    Haskell2010
 

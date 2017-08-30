@@ -10,12 +10,12 @@ data Channel = Channel { channelVolume :: Word8
                        }
 
 data Sequencer = Sequencer { channels :: [Channel]
-                           , patterns :: [[[Cell]]]
+                           , patterns :: [(String, [[Cell]])]
                            , order    :: [Int]
                            , pos      :: (Int, Int)
                            }
 
-defaultSeq = Sequencer [ Channel 100 Nothing, Channel 100 Nothing ] [defaultPattern] [0] (0,0)
+defaultSeq = Sequencer [ Channel 100 Nothing, Channel 100 Nothing ] [("test", defaultPattern), ("bla", defaultPattern), ("blup", defaultPattern)] [0] (0,0)
 
 emptyCell = Cell Nothing Nothing Nothing Nothing Nothing
 

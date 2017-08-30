@@ -21,17 +21,26 @@ data Editor = Editor { vty      :: Vty
                      }
 
 rootImage :: Editor -> Image
-rootImage Editor{..} = foldr1 (<|>) $ (renderIndex : [ renderChannel i | i <- [0 .. numChannels-1]]) <*> pure Editor{..}
-  where numChannels = length $ head (patterns sqncr !! fst cursorY)
+rootImage Editor{..} = (renderPatternList Editor{..}) <|> pad 1 1 1 1 pattern
+  where pattern     = foldr1 (<|>) $
+           (renderIndex : [ renderChannel i | i <- [0 .. numChannels-1]]) <*> pure Editor{..}
+        numChannels = length $ head (snd $ patterns sqncr !! fst cursorY)
 
 renderIndex :: Editor -> Image
 renderIndex Editor{..} = pad 0 0 2 0 $ foldr1 (<->) [ row i | i <- [1 .. length curPat]]
-  where curPat = patterns sqncr !! fst cursorY
-        row  i = string (defAttr `withForeColor` brightYellow) (replicate (4 - length (show i)) '0' ++ show i)
+  where curPat = snd $ patterns sqncr !! fst cursorY
+        row  i = string defAttr "| "
+             <|> string (defAttr `withForeColor` brightYellow)
+                   (replicate (4 - length (show i)) '0' ++ show i)
 
 renderChannel :: Int -> Editor -> Image
 renderChannel ch Editor{..} = pad 1 0 1 0 $ foldr1 (<->) [ renderCell Editor{..} ch i | i <- [0 .. length curPat - 1]]
-  where curPat = patterns sqncr !! fst cursorY
+  where curPat = snd $ patterns sqncr !! fst cursorY
+
+renderPatternList :: Editor -> Image
+renderPatternList Editor{..} = pad 1 1 1 0 $ resizeWidth 10 $ foldr1 (<->) (f <$> zip (fst <$> patterns sqncr) [0 .. numPat])
+  where f (n,c) = string ((if c == fst cursorY then flip withStyle reverseVideo else id) defAttr) n
+        numPat  = length $ patterns sqncr
 
 renderCell :: Editor -> Int -> Int -> Image
 renderCell Editor{..} ch i = string (w NoteCol brightWhite) (maybe "..." show (note cell))
@@ -46,7 +55,7 @@ renderCell Editor{..} ch i = string (w NoteCol brightWhite) (maybe "..." show (n
                          <|> (string (w EPCol16 magenta) (print16th $ effectParam cell))
                          <|> (string (w EPCol1 magenta) (print1st $ effectParam cell))
                          <|> string defAttr " "
-  where cell        = patterns sqncr !! fst cursorY !! i !! ch
+  where cell        = snd (patterns sqncr !! fst cursorY) !! i !! ch
         w c t       = (if cursorX == (ch, c) && snd cursorY == i then se else id) $ defAttr `withForeColor` t
         se  x       = if playing then x `withStyle` reverseVideo else x `withBackColor` red
         print1st a  = if isNothing a then "." else [ intToDigit . fromIntegral $ fromJust a `mod` 16 ]
@@ -79,10 +88,18 @@ handleEvents ed@Editor{..} = do
                                 return ed { cursorY = (fst cursorY, snd cursorY - 1) }
                               else
                                 return ed { cursorY = (fst cursorY, numRows - 1) }
+      EvKey KUp    [MCtrl] -> if fst cursorY == 0 then
+                                return ed { cursorY = (numPat - 1, snd cursorY) }
+                              else
+                                return ed { cursorY = (fst cursorY - 1, snd cursorY) }
       EvKey KDown       [] -> if snd cursorY < numRows - 1 then
                                 return ed { cursorY = (fst cursorY, snd cursorY + 1) }
                               else
                                 return ed { cursorY = (fst cursorY, 0) }
+      EvKey KDown  [MCtrl] -> if fst cursorY == numPat - 1 then
+                                return ed { cursorY = (0, snd cursorY) }
+                              else
+                                return ed { cursorY = (fst cursorY + 1, snd cursorY) }
       EvKey KRight      [] -> if cursorX == (numChns - 1, EPCol1) then
                                 return ed { cursorX = (0, NoteCol) }
                               else
@@ -100,8 +117,9 @@ handleEvents ed@Editor{..} = do
                               else
                                 return ed { cursorX = (fst cursorX - 1, snd cursorX) }
       _                    -> return ed
-  where numRows       = length $ patterns sqncr !! fst cursorY
-        numChns       = length . head $ patterns sqncr !! fst cursorY
+  where numRows       = length $ snd $ patterns sqncr !! fst cursorY
+        numChns       = length . head . snd $ patterns sqncr !! fst cursorY
+        numPat        = length $ patterns sqncr
         next (a, col) = if col == EPCol1  then (a+1, NoteCol) else (a, succ col)
         prev (a, col) = if col == NoteCol then (a-1, EPCol1)  else (a, pred col)
 
@@ -142,9 +160,8 @@ edit ed@Editor{..} c    =
 modifyCurrentCell :: Editor -> (Cell -> Cell) -> Editor
 modifyCurrentCell ed@Editor{..} f = ed { sqncr = sqncr { patterns =
     updateNth (fst cursorY)
-      (updateNth (snd cursorY)
-        (updateNth (fst cursorX) f))
-       (patterns sqncr)
+      (\(n,p) -> (n, updateNth (snd cursorY) (updateNth (fst cursorX) f) p))
+      (patterns sqncr)
     }}
   where updateNth n u (x:xs)
           | n == 0    = u x : xs

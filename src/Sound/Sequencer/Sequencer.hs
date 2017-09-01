@@ -13,9 +13,10 @@ data Sequencer = Sequencer { channels :: [Channel]
                            , patterns :: [(String, [[Cell]])]
                            , order    :: [Int]
                            , pos      :: (Int, Int)
+                           , playing  :: Bool
                            }
 
-defaultSeq = Sequencer [ Channel 100 Nothing, Channel 100 Nothing ] [("test", defaultPattern), ("bla", defaultPattern), ("blup", defaultPattern)] [0] (0,0)
+defaultSeq = Sequencer [ Channel 100 Nothing, Channel 100 Nothing ] [("test", defaultPattern), ("bla", defaultPattern), ("blup", defaultPattern)] [0] (0,0) False
 
 emptyCell = Cell Nothing Nothing Nothing Nothing Nothing
 

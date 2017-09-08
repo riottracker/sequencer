@@ -11,17 +11,18 @@ import Graphics.Vty
 import Control.Monad
 
 
-rootImage :: Editor -> Image
-rootImage Editor{..} = (renderPatternList Editor{..}) <|> pad 1 1 1 1 pattern
+rootImage :: Editor -> Int -> Image
+rootImage Editor{..} h = renderPatternList Editor{..}
+                     <|> pad 1 1 1 1 (translateY (if h > imageHeight pattern || snd cursorY < scroll then 0 else scroll - snd cursorY) pattern)
   where pattern     = foldr1 (<|>) $
            (renderIndex : [ renderChannel i | i <- [0 .. numChannels-1]]) <*> pure Editor{..}
         numChannels = length $ head (snd $ patterns sqncr !! fst cursorY)
+        scroll      = floor (fromIntegral h / 2)
 
 renderIndex :: Editor -> Image
 renderIndex Editor{..} = pad 0 0 2 0 $ foldr1 (<->) [ row i | i <- [1 .. length curPat]]
   where curPat = snd $ patterns sqncr !! fst cursorY
-        row  i = string defAttr "| "
-             <|> string (defAttr `withForeColor` brightYellow)
+        row  i = string (defAttr `withForeColor` brightYellow)
                    (replicate (4 - length (show i)) '0' ++ show i)
 
 renderChannel :: Int -> Editor -> Image
@@ -30,7 +31,7 @@ renderChannel ch Editor{..} = pad 1 0 1 0 $ foldr1 (<->) [ renderCell Editor{..}
 
 renderPatternList :: Editor -> Image
 renderPatternList Editor{..} = pad 1 1 1 0 $ resizeWidth 10 $ foldr1 (<->) (f <$> zip (fst <$> patterns sqncr) [0 .. numPat])
-  where f (n,c) = string ((if c == fst cursorY then flip withStyle reverseVideo else id) defAttr) n
+  where f (n,c) = string ((if c == fst cursorY then flip withStyle reverseVideo else id) defAttr) n <|> string defAttr " "
         numPat  = length $ patterns sqncr
 
 renderCell :: Editor -> Int -> Int -> Image
@@ -63,7 +64,8 @@ main = do
 
 mainLoop :: Vty -> Editor -> IO ()
 mainLoop vty Editor{..} = do
-  update vty $ picForImage (rootImage Editor{..})
+  bounds <- displayBounds $ outputIface vty
+  update vty $ picForImage $ rootImage Editor{..} (snd bounds)
   when running
     (fmap (handleEvents Editor{..}) (nextEvent vty) >>= mainLoop vty)
 

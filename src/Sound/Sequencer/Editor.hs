@@ -4,10 +4,20 @@ module Sound.Sequencer.Editor where
 
 import Sound.Sequencer.Sequencer
 
+import qualified Codec.Tracker.XM as XM
+import Codec.Tracker.XM.Pattern (Cell(..), patternData)
+import Codec.Tracker.XM.Header (numChannels)
+import Codec.Tracker.Common
+
+import Control.Exception
 import Control.Arrow
 import Control.Monad
+import Data.Binary.Get
 import Data.Char
 import Data.Maybe
+import Data.List.Split
+import qualified Data.ByteString.Lazy as B
+import System.IO
 
 data Column = NoteCol | InsCol16 | InsCol1 | VolCol16 | VolCol1 | ETCol | EPCol16 | EPCol1
   deriving (Show, Eq, Enum)
@@ -21,6 +31,18 @@ data Editor = Editor { cursorX :: (Int, Column)
 
 data EditorEvent = MoveUp | MoveDown | MoveRight | MoveLeft | JumpUp | JumpDown | JumpRight | JumpLeft | SelectOctave Int | Edit Char | Delete | AddRow | RemoveRow | Quit
   deriving (Show, Eq)
+
+loadXM :: String -> IO (Maybe Editor)
+loadXM fn = try (B.readFile fn) >>= \h ->
+  case h of
+    Left e -> hPrint stderr (e :: IOException) >> return Nothing
+    Right f -> case runGetOrFail XM.getModule f of
+        Left  (_,n,e) -> hPutStrLn stderr (show n ++ ": " ++ e) >> return Nothing
+        Right (_,_,m) -> return $ Just (fromXM m)
+
+fromXM :: XM.Module -> Editor
+fromXM XM.Module{..} = Editor (0, NoteCol) (0,0) 4 True (defaultSeq { patterns = [ ("", chunksOf n $ patternData p) | p <- patterns ] })
+  where n = fromIntegral $ numChannels header
 
 edit :: Editor -> EditorEvent -> Editor
 edit ed@Editor{..} ev = case ev of
@@ -112,5 +134,4 @@ pianoRoll o = fmap (Note <$>)
   , ('c', Pitch E o), ('v', Pitch F o), ('g', Pitch Fsharp o), ('b', Pitch G o)
   , ('h', Pitch Gsharp o), ('n', Pitch A o), ('j', Pitch Asharp o)
   ]
-
 

@@ -55,11 +55,10 @@ renderCell Editor{..} ch i = string (w NoteCol brightWhite) (maybe "..." show (n
         print16th a = if isNothing a then "." else [ intToDigit . fromIntegral $ fromJust a `div` 16 ]
 
 
-main :: IO ()
-main = do
+run :: Editor -> IO ()
+run ed = do
   cfg <- standardIOConfig
   vty <- mkVty cfg
-  let ed = Editor (0, NoteCol) (0,0) 4 True defaultSeq
   mainLoop vty ed
   shutdown vty
 

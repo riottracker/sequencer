@@ -70,4 +70,3 @@ defaultPattern = [ [ Cell (Just (Note (Pitch C 3))) (Just 0) Nothing Nothing Not
                  ]
 
 
-
